@@ -1,0 +1,119 @@
+# Claude Code 会话进度
+
+## 会话日期
+2025-12-10 (第三次会话)
+
+## 本次完成的工作
+
+### 验证通过的 Features
+
+| ID | 功能 | 状态 | 验证方式 |
+|----|------|------|----------|
+| 1 | 基础渲染与数据展示 | ✅ 通过 | 前次会话 |
+| 2 | 分页功能 | ✅ 通过 | 前次会话 |
+| 3 | 排序功能 | ✅ 通过 | 前次会话 |
+| 4 | 筛选功能 | ✅ 通过 | Playwright |
+| 5 | 列可见性切换 | ✅ 通过 | Playwright |
+| 6 | 行选择功能 | ✅ 通过 | Playwright |
+| 7 | 行操作菜单 | ✅ 通过 | Playwright |
+| 8 | 批量操作功能 | ✅ 通过 | Playwright |
+| 9 | 服务端分页 | ✅ 通过 | Playwright |
+| 10 | 响应式布局 | ✅ 通过 | Playwright |
+| 11 | 权限控制集成 | ✅ 通过 | 代码审查 |
+| 12 | 边界条件处理 | ✅ 通过 | Playwright |
+
+### 代码变更
+
+1. **DataTableDemo.tsx** - 新增服务端分页模式演示
+   - 添加"切换服务端分页"按钮
+   - 实现模拟 API 请求（100 条数据，500ms 延迟）
+   - 展示 loading 状态和分页切换
+   - pageCount 和 onPaginationChange 正确传递
+
+## feature_list.json 状态
+
+- **12/12 测试全部通过**
+
+## 验证状态
+
+- [x] `pnpm lint` - 通过（0 errors，8 warnings）
+- [x] `pnpm typecheck` - 通过
+- [x] `pnpm test` - 38 tests 通过
+
+---
+
+## 关键实现说明
+
+### Feature #9: 服务端分页
+
+DataTableDemo 演示页面新增服务端分页模式：
+- 使用 `serverPagination` prop 配置
+- 模拟 100 条数据的后端 API
+- 切换页码时显示 loading 状态
+- Toast 显示当前加载的数据范围
+
+### Feature #11: 权限控制
+
+DataTableRowActions 组件权限控制实现：
+- 每个 action 可配置 `permission` 属性
+- 使用 `usePermission` hook 检查权限
+- `unauthorizedBehavior: 'hide'` - 无权限时隐藏（默认）
+- `unauthorizedBehavior: 'disable'` - 无权限时禁用
+- 所有操作都被隐藏时，整个菜单按钮也隐藏
+
+---
+
+## Playwright 测试指南
+
+### 快速开始
+
+```bash
+# 1. 启动开发环境
+pnpm db:start && pnpm dev
+
+# 2. 创建测试脚本到 /tmp
+# 3. 运行测试
+cd ~/.claude/skills/playwright-skill && node run.js /tmp/your-test.js
+```
+
+### 关键选择器参考
+
+| 元素 | 选择器 |
+|------|--------|
+| 登录邮箱输入框 | `#email` |
+| 登录密码输入框 | `#password` |
+| 登录按钮 | `button[type="submit"]` |
+| 上一页按钮 | `button:has(span.sr-only:text("上一页"))` |
+| 下一页按钮 | `button:has(span.sr-only:text("下一页"))` |
+| 分页信息 | `text=/第 \d+ \/ \d+ 页/` |
+| 搜索输入框 | `input[placeholder="搜索用户..."]` |
+| 显示列按钮 | `button:has-text("显示列")` |
+| 行复选框 | `tbody tr td:first-child [role="checkbox"]` |
+| 操作按钮 | `tbody tr td:last-child button` |
+| 批量删除按钮 | `button:has-text("删除所选")` |
+| 服务端分页按钮 | `button:has-text("切换服务端分页")` |
+
+### 演示页面功能
+
+- **路径**: `/demo/data-table`
+- **菜单**: 开发示例 → DataTable 组件
+- **数据切换按钮**: 空数据 / 5条 / 15条 / 50条
+- **服务端分页**: 100条数据，每页10条，共10页
+
+---
+
+## 历史记录
+
+### 第一次会话
+- 创建 DataTable 组件体系
+- 创建 feature_list.json（12个测试用例）
+
+### 第二次会话
+- 创建 DataTableDemo 演示页面
+- 验证通过 Feature #1, #2, #3
+
+### 第三次会话（当前）
+- 验证通过 Feature #4-#8, #10, #12
+- 实现并验证 Feature #9 服务端分页
+- 代码审查验证 Feature #11 权限控制
+- **全部 12/12 测试通过**

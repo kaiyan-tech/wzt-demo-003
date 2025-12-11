@@ -1,0 +1,11 @@
+# 排除 GitHub Actions 工作流文件（包含复杂的 heredoc 脚本）
+.github/workflows/*.yml
+
+# 构建产物
+dist/
+node_modules/
+.next/
+out/
+
+# Prisma 生成文件
+apps/backend/node_modules/.prisma/

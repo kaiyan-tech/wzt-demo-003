@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<WebsiteConfiguration>
+  <IndexDocument>
+    <Suffix>index.html</Suffix> <!-- 默认首页文件名 -->
+    <SupportSubDir>true</SupportSubDir> <!-- 开启子目录首页功能 -->
+  </IndexDocument>
+  <!-- SPA 兜底：所有 404 返回 index.html，HTTP 码 200 -->
+  <ErrorDocument>
+    <Key>index.html</Key>
+    <HttpErrorCodeReturnedEquals>200</HttpErrorCodeReturnedEquals>
+  </ErrorDocument>
+</WebsiteConfiguration>

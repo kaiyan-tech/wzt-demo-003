@@ -1,0 +1,292 @@
+# 后端流水线
+# 参考：《开沿核心技术宪章》6.0 节 - CI/CD 行为矩阵
+# 参考：《开沿核心技术宪章》6.2 节 - 后端流水线
+
+name: 后端流水线（CI + 可选部署）
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'apps/backend/**'
+      - 'packages/shared/**'
+      - 'infra/**'
+      - 'pnpm-lock.yaml'
+  pull_request:
+    paths:
+      - 'apps/backend/**'
+      - 'packages/shared/**'
+      - 'infra/**'
+      - 'pnpm-lock.yaml'
+
+env:
+  NODE_VERSION: '22'
+  PNPM_VERSION: '10.24.0' # 与 package.json 的 packageManager 对齐
+  FC_REGION: cn-shenzhen
+
+jobs:
+  # CI 检查
+  ci:
+    name: 持续集成检查
+    runs-on: ubuntu-latest
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/ky_test?schema=public
+      SHADOW_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/ky_shadow?schema=public
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: ky_test
+        ports:
+          - '5432:5432'
+        options: >-
+          --health-cmd "pg_isready -U postgres -d ky_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 配置 pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - name: 配置 Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+
+      - name: 安装依赖
+        run: pnpm install --frozen-lockfile
+
+      # 创建 shadow 数据库（用于 prisma migrate diff）
+      - name: 创建 Shadow 数据库
+        run: PGPASSWORD=postgres psql -h localhost -U postgres -c "CREATE DATABASE ky_shadow;"
+
+      - name: 检查 Schema 与迁移同步
+        working-directory: apps/backend
+        run: |
+          # 使用 CI 服务容器中的 PostgreSQL 作为 shadow database
+          # shadow database 用于临时应用迁移并与 schema.prisma 比较
+          pnpm exec prisma migrate diff \
+            --from-migrations ./prisma/migrations \
+            --to-schema-datamodel ./prisma/schema.prisma \
+            --shadow-database-url "$SHADOW_DATABASE_URL" \
+            --exit-code
+
+      - name: 准备测试数据库架构
+        run: pnpm --filter backend prisma:migrate:deploy
+
+      - name: 构建共享包
+        run: pnpm --filter @shared build
+
+      - name: 生成 Prisma 客户端
+        run: pnpm --filter backend prisma:generate
+
+      - name: 代码检查
+        run: pnpm --filter backend lint
+
+      - name: 类型检查
+        run: pnpm --filter backend typecheck
+
+      - name: 运行测试
+        run: pnpm --filter backend test
+
+      - name: 构建应用
+        run: pnpm --filter backend build
+
+      - name: 上传构建产物
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-dist
+          path: |
+            apps/backend/dist
+            apps/backend/prisma
+            apps/backend/package.json
+            packages/shared/dist
+            packages/shared/package.json
+          retention-days: 7
+
+  # 生产环境部署（Push 到 main 触发）
+  # 简化架构：移除预览环境，本地开发请使用 pnpm dev:backend
+  # 参考：《开沿核心技术宪章》6.2 节
+  deploy-production:
+    name: 部署生产环境
+    if: |
+      github.event_name == 'push' &&
+      github.ref == 'refs/heads/main' &&
+      vars.ENABLE_DEPLOY == 'true'
+    needs: ci
+    runs-on: ubuntu-latest
+    environment:
+      name: production
+      url: https://api.kaiyan.net
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      # 使用 composite action 准备部署环境
+      - name: 准备 FC 部署环境
+        uses: ./.github/actions/setup-fc-deploy
+        with:
+          pnpm-version: ${{ env.PNPM_VERSION }}
+          node-version: ${{ env.NODE_VERSION }}
+          aliyun-access-key-id: ${{ secrets.ALIYUN_ACCESS_KEY_ID }}
+          aliyun-access-key-secret: ${{ secrets.ALIYUN_ACCESS_KEY_SECRET }}
+
+      # 部署代码
+      # 注意：不使用版本管理，直接更新 LATEST，参考 FC-DEPLOY-PATCHES.md 设计决策 #1
+      - name: 部署到生产环境
+        id: deploy
+        working-directory: infra
+        run: |
+          s deploy -y --use-local -t s.prod.yaml
+          # 获取 FC3 的 system_url
+          INFO_JSON=$(s info -t s.prod.yaml --output json 2>/dev/null)
+          FC_URL=$(echo "$INFO_JSON" | node -e "
+            const chunks = [];
+            process.stdin.on('data', c => chunks.push(c));
+            process.stdin.on('end', () => {
+              try {
+                const text = chunks.join('');
+                const start = text.indexOf('{');
+                const end = text.lastIndexOf('}');
+                if (start === -1 || end === -1) { console.log(''); process.exit(0); }
+                const json = JSON.parse(text.slice(start, end + 1));
+                const url = json?.url?.system_url || json?.system_url || '';
+                console.log(url);
+              } catch { console.log(''); }
+            });
+          ")
+          echo "FC_URL=${FC_URL}" >> $GITHUB_OUTPUT
+          echo "Production FC URL: ${FC_URL}"
+        env:
+          ALIBABA_CLOUD_ACCESS_KEY_ID: ${{ secrets.ALIYUN_ACCESS_KEY_ID }}
+          ALIBABA_CLOUD_ACCESS_KEY_SECRET: ${{ secrets.ALIYUN_ACCESS_KEY_SECRET }}
+          FC_CODE_TEMP_OSS_ENDPOINT: https://oss-${{ env.FC_REGION }}.aliyuncs.com
+          FC_SERVICE_NAME: ${{ secrets.FC_SERVICE_NAME }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
+          JWT_EXPIRES_IN: '7d'
+          APP_VERSION: ${{ github.sha }}
+          NODE_ENV: production
+          VPC_ID: ${{ secrets.VPC_ID }}
+          VSWITCH_ID: ${{ secrets.VSWITCH_ID }}
+          SECURITY_GROUP_ID: ${{ secrets.SECURITY_GROUP_ID }}
+          MIGRATION_TOKEN: ${{ secrets.MIGRATION_TOKEN_PROD }}
+
+
+      # 数据库迁移（通过 FC 内部接口）
+      - name: 迁移生产数据库
+        env:
+          MIGRATION_ENDPOINT: ${{ secrets.MIGRATION_ENDPOINT_PROD }}
+          FC_URL: ${{ steps.deploy.outputs.FC_URL }}
+          MIGRATION_TOKEN: ${{ secrets.MIGRATION_TOKEN_PROD }}
+        run: |
+          set -e
+          if [ -z "$MIGRATION_TOKEN" ]; then
+            echo "MIGRATION_TOKEN_PROD is not set."
+            exit 1
+          fi
+
+          # 优先使用 MIGRATION_ENDPOINT_PROD，否则使用部署后获取的 FC URL
+          if [ -n "$MIGRATION_ENDPOINT" ]; then
+            TARGET_URL="$MIGRATION_ENDPOINT"
+          elif [ -n "$FC_URL" ]; then
+            TARGET_URL="${FC_URL}/api/internal/db-migrate"
+          else
+            echo "No migration endpoint available."
+            exit 1
+          fi
+
+          echo "Migrating production database..."
+          echo "Triggering DB migration: $TARGET_URL"
+
+          RESPONSE_RAW=$(curl -sS -w "\n%{http_code}" -X POST "$TARGET_URL" \
+            -H "Content-Type: application/json" \
+            -H "x-migration-token: $MIGRATION_TOKEN" \
+            -d "{\"env\":\"prod\",\"gitSha\":\"${GITHUB_SHA}\"}" \
+            --max-time 120)
+
+          STATUS_CODE=$(echo "$RESPONSE_RAW" | tail -n 1)
+          RESPONSE=$(echo "$RESPONSE_RAW" | head -n -1)
+
+          echo "Response: $RESPONSE"
+          echo "HTTP status: $STATUS_CODE"
+
+          if [ "$STATUS_CODE" != "200" ]; then
+            echo "::error::迁移接口返回非 200 状态码，已停止后续步骤。请检查 FC 日志及数据库状态。"
+            exit 1
+          fi
+
+          # 解析迁移响应
+          SUCCESS=$(echo "$RESPONSE" | jq -r '.success // false')
+          if [ "$SUCCESS" != "true" ]; then
+            ERROR_MSG=$(echo "$RESPONSE" | jq -r '.stderr // .message // "Unknown error"')
+            echo "::error::Production migration failed: $ERROR_MSG"
+            echo "恢复指引:"
+            echo " 1) 查看 FC 函数日志确认是否有部分迁移已执行"
+            echo " 2) 如有部分变更，评估是否需要手动回滚或追加迁移"
+            echo " 3) 修复问题后重新触发流水线"
+            exit 1
+          fi
+
+          echo "Production migration completed successfully."
+
+      - name: 初始化生产数据（首次部署）
+        env:
+          FC_URL: ${{ steps.deploy.outputs.FC_URL }}
+          MIGRATION_TOKEN: ${{ secrets.MIGRATION_TOKEN_PROD }}
+        run: |
+          if [ -z "$FC_URL" ] || [ -z "$MIGRATION_TOKEN" ]; then
+            echo "Missing FC_URL or MIGRATION_TOKEN, skipping seed check."
+            exit 0
+          fi
+
+          TARGET_URL="${FC_URL}/api/internal/db-seed"
+          echo "Checking if seed is needed..."
+
+          RESPONSE=$(curl -sS -X POST "$TARGET_URL" \
+            -H "Content-Type: application/json" \
+            -H "x-migration-token: $MIGRATION_TOKEN" \
+            -d "{\"gitSha\":\"${GITHUB_SHA}\"}" \
+            --max-time 60)
+
+          echo "Seed response: $RESPONSE"
+
+          SUCCESS=$(echo "$RESPONSE" | jq -r '.success // false')
+          if [ "$SUCCESS" = "true" ]; then
+            echo "Seed completed successfully."
+          else
+            echo "::warning::Seed returned non-success status. This may be expected if data already exists."
+          fi
+
+      # 冒烟测试
+      - name: 冒烟测试
+        env:
+          FC_URL: ${{ steps.deploy.outputs.FC_URL }}
+        run: |
+          # 使用部署后获取的 FC3 URL 进行健康检查
+          if [ -z "$FC_URL" ]; then
+            echo "FC_URL is empty, skipping smoke test"
+            exit 0
+          fi
+          HEALTH_URL="${FC_URL}/api/health"
+          echo "Health check URL: $HEALTH_URL"
+          response=$(curl -s -o /dev/null -w "%{http_code}" "$HEALTH_URL")
+          if [ "$response" != "200" ]; then
+            echo "Smoke test failed! HTTP status: $response"
+            exit 1
+          fi
+          echo "Smoke test passed!"
+
+      - name: 部署通知
+        run: |
+          echo "Backend deployed to production successfully!"
+          echo "Commit: ${{ github.sha }}"
+          echo "回滚方式: git revert + 重新部署"

@@ -1,0 +1,71 @@
+# FC 部署准备 Composite Action
+# 抽取 deploy-preview 和 deploy-production 中的公共步骤
+# 参考：FC-DEPLOY-PATCHES.md
+
+name: 'Setup FC Deploy'
+description: '准备 FC 部署环境：下载构建产物、安装依赖、创建部署包'
+
+inputs:
+  pnpm-version:
+    description: 'pnpm 版本'
+    required: true
+  node-version:
+    description: 'Node.js 版本'
+    required: true
+  aliyun-access-key-id:
+    description: '阿里云 AccessKey ID'
+    required: true
+  aliyun-access-key-secret:
+    description: '阿里云 AccessKey Secret'
+    required: true
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Download build artifact
+      uses: actions/download-artifact@v4
+      with:
+        name: backend-dist
+        # 下载到根目录，保持原始路径结构（apps/backend/*, packages/shared/*）
+
+    - name: Setup pnpm
+      uses: pnpm/action-setup@v4
+      with:
+        version: ${{ inputs.pnpm-version }}
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ inputs.node-version }}
+        cache: 'pnpm'
+
+    - name: Install production dependencies
+      shell: bash
+      run: pnpm install --frozen-lockfile --prod --ignore-scripts
+
+    - name: Generate Prisma Client
+      shell: bash
+      run: pnpm --filter backend exec prisma generate
+
+    # 使用 pnpm deploy 创建独立部署目录（解析所有符号链接和传递依赖）
+    # 参考：FC-DEPLOY-PATCHES.md 补丁 #4-#8, #14
+    - name: Create FC deployment package
+      shell: bash
+      run: |
+        rm -rf fc-deploy
+        pnpm --filter backend deploy fc-deploy --prod --legacy --ignore-scripts
+        cp -r apps/backend/dist fc-deploy/
+        # 复制 Prisma 生成的客户端（pnpm 中在 .pnpm 深层目录）
+        PRISMA_DIR=$(find node_modules/.pnpm -type d -name ".prisma" | head -1)
+        cp -rL "$PRISMA_DIR" fc-deploy/node_modules/
+        # 复制 @shared workspace 包的构建产物（先删除 pnpm 创建的符号链接）
+        rm -rf fc-deploy/node_modules/@shared
+        mkdir -p fc-deploy/node_modules/@shared
+        cp -r packages/shared/dist fc-deploy/node_modules/@shared/
+        cp packages/shared/package.json fc-deploy/node_modules/@shared/
+
+    - name: Setup Serverless Devs
+      shell: bash
+      run: |
+        npm install -g @serverless-devs/s
+        s config add --AccessKeyID ${{ inputs.aliyun-access-key-id }} --AccessKeySecret ${{ inputs.aliyun-access-key-secret }} -a default -f

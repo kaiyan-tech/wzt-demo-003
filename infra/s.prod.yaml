@@ -1,0 +1,74 @@
+# 生产环境 Serverless Devs 配置
+# 参考：《开沿核心技术宪章》1.2 节 - 生产环境配置 1 个预留实例以消除冷启动
+# 参考：《开沿核心技术宪章》5.1 节 - 预留实例
+# 注意：此文件是完整独立配置，不使用 extend
+
+edition: 3.0.0
+name: kaiyan-api
+access: default
+
+vars:
+  region: cn-shenzhen
+  service:
+    name: ${env('FC_SERVICE_NAME')}
+
+resources:
+  api-server:
+    component: fc3
+    props:
+      region: ${vars.region}
+      service: ${vars.service}
+      # 打包入口 - 指向 pnpm deploy 创建的独立部署目录
+      code: ../fc-deploy
+      functionName: ${env('FC_SERVICE_NAME')}-api
+      description: '开沿后端 API 服务'
+      # 使用自定义运行时，NestJS 直接监听端口，避免 FC HTTP Handler API 兼容性问题
+      runtime: custom.debian12
+      customRuntimeConfig:
+        command:
+          - /var/fc/lang/nodejs22/bin/node
+        args:
+          - dist/main.js
+        port: 9000
+      # 生产环境资源配置
+      cpu: 0.25
+      memorySize: 256
+      diskSize: 512
+      timeout: 86000
+      instanceConcurrency: 10
+      # 日志配置
+      logConfig:
+        project: serverless-cn-shenzhen-bcc9b0de-317c-5ae1-8744-0aad348f3cae
+        logstore: default-logs
+        enableRequestMetrics: true
+        enableInstanceMetrics: true
+      environmentVariables:
+        NODE_ENV: ${env('NODE_ENV')}
+        DATABASE_URL: ${env('DATABASE_URL')}
+        JWT_SECRET: ${env('JWT_SECRET')}
+        JWT_EXPIRES_IN: ${env('JWT_EXPIRES_IN')}
+        APP_VERSION: ${env('APP_VERSION')}
+        MIGRATION_TOKEN: ${env('MIGRATION_TOKEN')}
+      # VPC 配置 - 必须与 RDS 在同一 VPC
+      # 参考：《开沿工程指导手册》2.4 节
+      vpcConfig:
+        vpcId: ${env('VPC_ID')}
+        vSwitchIds:
+          - ${env('VSWITCH_ID')}
+        securityGroupId: ${env('SECURITY_GROUP_ID')}
+      # 预留实例配置 - 消除冷启动
+      # 参考：《开沿核心技术宪章》5.1 节
+      provisionConfig:
+        target: 1
+      # HTTP 触发器
+      triggers:
+        - triggerName: http-trigger
+          triggerType: http
+          triggerConfig:
+            authType: anonymous
+            methods:
+              - GET
+              - POST
+              - PUT
+              - DELETE
+              - OPTIONS

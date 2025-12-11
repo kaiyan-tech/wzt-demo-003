@@ -1,0 +1,326 @@
+<project_specification>
+  <project_name>开沿中小企业内部管理系统启动框架模板</project_name>
+
+  <overview>
+    全栈项目模板，通过 ./scripts/setup.sh 初始化后成为开发者的项目初始框架。
+    构建一个高效、严格治理的全栈项目模板，面向中小企业内部管理系统（OA/ERP/CRM）定制化开发的启动模板。
+    架构遵循"极简"（Serverless + 单体）、"高效"（CRUD 模板）、"严治理"（类型安全 + RBAC）的理念。
+    通过 CLI 初始化即可在阿里云（OSS/FC/RDS）上即时开通基础设施，并提供内置认证、组织管理和细粒度权限控制的开箱即用编码基础。
+  </overview>
+
+  <technology_stack>
+    <infrastructure>
+      <cloud_provider>阿里云</cloud_provider>
+      <compute>函数计算（FC）- Node.js 运行时</compute>
+      <storage>OSS（静态网站托管）、RDS PostgreSQL 17（数据库）</storage>
+      <iac>Serverless Devs（s.yaml）</iac>
+      <strategy>单一生产环境，本地 Docker PostgreSQL 开发</strategy>
+    </infrastructure>
+    <frontend>
+      <framework>React 18 + Vite</framework>
+      <language>TypeScript</language>
+      <styling>Tailwind CSS + shadcn/ui</styling>
+      <state_management>Zustand（全局）+ React Query（服务端状态）</state_management>
+      <routing>React Router v7</routing>
+      <scaffolding>自定义 "ResourcePage" CRUD 组件</scaffolding>
+    </frontend>
+    <backend>
+      <framework>NestJS（单体，适配 Serverless）</framework>
+      <runtime>Node.js（LTS）</runtime>
+      <orm>Prisma（严格连接管理，不使用 RDS Proxy）</orm>
+      <validation>class-validator + class-transformer（共享 DTO）</validation>
+    </backend>
+    <monorepo_tooling>
+      <manager>pnpm workspaces</manager>
+      <structure>apps（前端/后端）+ packages（共享）</structure>
+      <cli>./scripts/setup.sh（内置初始化脚本）</cli>
+    </monorepo_tooling>
+  </technology_stack>
+
+  <prerequisites>
+    <environment_setup>
+      - 全局安装 pnpm
+      - 本地 Docker PostgreSQL 开发数据库
+      - 具备 AccessKey 的阿里云账号
+      - 安装 Serverless Devs CLI
+    </environment_setup>
+  </prerequisites>
+
+  <core_features>
+    <authentication_identity>
+      - 标准的用户名/密码登录
+      - JWT 认证（短效 Access Token + 长效 HttpOnly Refresh Token）
+      - RBAC（基于角色的访问控制），通过守卫强制执行
+      - 针对无状态 FC 环境优化会话管理
+      - 安全密码哈希（Argon2/Bcrypt）
+    </authentication_identity>
+
+    <organization_management>
+      - 分层组织树（部门/租户）
+      - 采用物化路径策略优化树遍历
+      - 成员管理与角色分配
+      - 可选的组织结构可视化
+    </organization_management>
+
+    <permission_governance>
+      - 细粒度权限点（如 "user:create"），定义在共享枚举中
+      - 数据范围逻辑：本人、部门、部门树、全部
+      - "ScopedService" 基类实现自动数据过滤
+      - 后端 Guard 装饰器实现声明式权限校验
+      - 前端 "PermissionGate" 控制 UI 元素可见性
+    </permission_governance>
+
+    <efficiency_scaffolding>
+      - "ResourcePage" 组件：配置驱动的 CRUD 页面（搜索 + 表格 + 弹窗）
+      - 标准化 API 响应格式
+      - 统一的错误处理与全局过滤器
+      - 基于 class-validator 的 DTO 验证
+    </efficiency_scaffolding>
+
+    <audit_compliance>
+      - 全局拦截器记录操作日志
+      - 记录：谁、何时、做什么（方法/路径）、参数、IP、耗时
+      - 不可变的审计日志存储
+    </audit_compliance>
+  </core_features>
+
+  <database_schema>
+    <tables>
+      <organizations>
+        - id, name, code
+        - parent_id, path（物化路径提升性能）
+        - level, sort_order
+        - created_at, updated_at
+      </organizations>
+
+      <users>
+        - id, username, password_hash
+        - name, phone, email, avatar, status
+        - org_id（指向 organizations 的外键）
+        - created_at, updated_at
+      </users>
+
+      <roles>
+        - id, name, description
+        - is_system（布尔）
+        - data_scope（枚举：ALL、ORG_TREE、ORG、SELF）
+      </roles>
+
+      <permissions>
+        - code（主键，例如 'user:read'）, module
+        - description
+      </permissions>
+
+      <user_roles>
+        - user_id, role_id（多对多）
+      </user_roles>
+
+      <role_permissions>
+        - role_id, permission_code（多对多）
+      </role_permissions>
+
+      <audit_logs>
+        - id, user_id, action, method, path
+        - params（JSON）, ip, duration
+        - created_at
+      </audit_logs>
+    </tables>
+  </database_schema>
+
+  <api_endpoints_summary>
+    <auth>
+      - POST /api/auth/login
+      - POST /api/auth/logout
+      - POST /api/auth/refresh（基于 Cookie）
+      - GET /api/auth/profile（返回用户 + 权限 + 菜单）
+    </auth>
+
+    <users>
+      - GET /api/users（数据范围过滤）
+      - POST /api/users
+      - GET /api/users/:id
+      - PUT /api/users/:id
+      - DELETE /api/users/:id
+      - POST /api/users/:id/reset-password
+    </users>
+
+    <organizations>
+      - GET /api/orgs/tree
+      - POST /api/orgs
+      - PUT /api/orgs/:id
+      - DELETE /api/orgs/:id
+    </organizations>
+
+    <roles>
+      - GET /api/roles
+      - POST /api/roles
+      - PUT /api/roles/:id（更新权限与数据范围）
+      - DELETE /api/roles/:id
+      - GET /api/roles/permissions（列出所有可用权限）
+    </roles>
+
+    <system>
+      - GET /api/audit-logs
+      - GET /api/health（FC 可用性检查）
+    </system>
+  </api_endpoints_summary>
+
+  <ui_layout>
+    <main_structure>
+      - "App Shell" 布局，包含侧边栏、头部和主内容区
+      - 响应式设计（可折叠侧边栏）
+      - 加载进度条（NProgress）与吐司通知
+    </main_structure>
+
+    <sidebar_navigation>
+      - 静态菜单配置（代码层治理）
+      - 基于用户权限的动态筛选
+      - 支持嵌套菜单
+      - 高亮当前激活项
+    </sidebar_navigation>
+
+    <resource_page_template>
+      - 标准化 CRUD 布局
+      - 搜索区：基于 schema 自动生成表单
+      - 操作栏：创建/导出按钮（受权限保护）
+      - 数据表：可排序、分页，包含操作列
+      - 对话框/抽屉：处理创建/编辑表单
+    </resource_page_template>
+
+    <modals_overlays>
+      - 登录弹窗/页面
+      - 全局确认对话框
+      - 处理复杂表单的侧滑抽屉
+    </modals_overlays>
+  </ui_layout>
+
+  <design_system>
+    <color_palette>
+      - 基础：Slate/Zinc 中性色
+      - 主色：品牌色（可在 Tailwind 配置中调整）
+      - 语义色：成功（绿色）、警告（琥珀色）、错误（红色）、信息（蓝色）
+    </color_palette>
+
+    <components>
+      <core_ui>
+        - 基于 shadcn/ui（Radix Primitives）
+        - 严格类型的 Props
+      </core_ui>
+
+      <data_display>
+        - 数据表（TanStack Table）：支持虚拟化
+        - 分页控件
+        - 空状态与加载骨架
+      </data_display>
+
+      <form_elements>
+        - React Hook Form（表单状态管理）
+        - 受控输入：文本、选择器、日期选择、组合框
+      </form_elements>
+    </components>
+  </design_system>
+
+  <key_interactions>
+    <crud_flow>
+      1. 用户进入某个资源页（如用户管理）
+      2. "ResourcePage" 组件使用 "useQuery" 拉取数据
+      3. 后端 "ScopedService" 应用数据范围过滤（WHERE 子句）
+      4. 用户点击"创建"，弹出表单 Modal
+      5. 用户提交表单，"useMutation" 调用 API
+      6. 后端校验 DTO 并执行事务
+      7. 成功后：弹出吐司，表格自动刷新
+    </crud_flow>
+
+    <permission_flow>
+      1. 用户登录后获得 Access Token 与权限列表
+      2. 应用将权限存入全局状态（Zustand）
+      3. 侧边栏过滤掉无权限的菜单
+      4. "PermissionGate" 组件隐藏受限按钮
+      5. 后端 Guard 在每个请求上做最终安全检查
+    </permission_flow>
+  </key_interactions>
+
+  <implementation_steps>
+    <step number="1">
+      <title>Monorepo 与共享基础</title>
+      <tasks>
+        - 初始化 pnpm workspace
+        - 配置 "packages/shared"，包含 DTO、类型和权限枚举
+        - 开启 TypeScript 严格模式
+      </tasks>
+    </step>
+
+    <step number="2">
+      <title>基础设施与后端核心</title>
+      <tasks>
+        - 配置 "infra/s.yaml"，覆盖 FC/OSS/RDS
+        - 初始化基于 Prisma 的 NestJS 应用
+        - 实现 "ScopedService" 基类
+        - 实现 AuthModule（JWT）与全局守卫
+        - 实现连接管理（Prisma 断开策略）
+      </tasks>
+    </step>
+
+    <step number="3">
+      <title>数据库与种子数据</title>
+      <tasks>
+        - 定义 Prisma Schema（组织树、RBAC）
+        - 编写 "scripts/seed.ts"（同步权限、创建超级管理员）
+        - 配置本地 PG 的 Docker Compose
+      </tasks>
+    </step>
+
+    <step number="4">
+      <title>前端架构</title>
+      <tasks>
+        - 搭建 Vite + React + Tailwind
+        - 实现 "AppShell" 布局
+        - 构建通用 "ResourcePage" 组件
+        - 配置 Axios 拦截器（刷新 Token）与 React Query
+      </tasks>
+    </step>
+
+    <step number="5">
+      <title>功能模块</title>
+      <tasks>
+        - 实现组织管理（树形视图）
+        - 实现角色与权限管理
+        - 实现用户管理
+        - 实现审计日志视图
+      </tasks>
+    </step>
+
+    <step number="6">
+      <title>CLI 与交付</title>
+      <tasks>
+        - 构建 ./scripts/setup.sh 初始化脚本
+        - 自动生成环境变量（.env）
+        - 完成部署流水线（GitHub Actions）
+      </tasks>
+    </step>
+  </implementation_steps>
+
+  <success_criteria>
+    <functionality>
+      - 无冷启动错误（连接池已管理）
+      - 数据范围逻辑正确（销售 A 不能看到销售 B 的数据）
+      - RBAC 严格执行（未授权访问返回 403）
+      - 组织树查询性能良好（<100ms）
+    </functionality>
+
+    <developer_experience>
+      - 新建一个 CRUD 模块耗时低于 30 分钟
+      - 从数据库到前端组件保持完整类型安全
+      - 本地开发环境一条命令即可启动
+      - 部署幂等且由 IaC 驱动
+    </developer_experience>
+
+    <technical_quality>
+      - "shared" 包是单一事实来源
+      - UI 要尽可能全面使用shadcn/ui
+      - 不存在硬编码的权限或角色字符串
+      - 关注点清晰分层（核心 vs 模块）
+      - 审计日志成功捕获所有写操作
+    </technical_quality>
+  </success_criteria>
+</project_specification>

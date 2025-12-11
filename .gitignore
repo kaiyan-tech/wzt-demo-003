@@ -1,0 +1,66 @@
+# 依赖
+node_modules/
+.pnpm-store/
+
+# 构建产物
+dist/
+dist-node/
+build/
+.next/
+out/
+
+# 环境变量（包含敏感信息，禁止提交）
+.env
+.env.local
+.env.*.local
+apps/backend/.env
+*.local
+env.yaml
+infra/env.yaml
+infra/env.*.yaml
+scripts/setup.env
+
+# IDE
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+.idea/
+*.swp
+*.swo
+*~
+
+# 操作系统
+.DS_Store
+Thumbs.db
+
+# 日志
+logs/
+*.log
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# 测试
+coverage/
+.nyc_output/
+
+# Prisma
+apps/backend/prisma/migrations/*_migration.sql
+apps/backend/prisma/*.js
+apps/backend/prisma/*.js.map
+apps/backend/prisma/*.d.ts
+
+# Serverless Devs
+.s/
+fc-deploy/
+
+# 缓存
+.cache/
+.turbo/
+*.tsbuildinfo
+
+# 临时文件
+tmp/
+temp/
+*.tmp

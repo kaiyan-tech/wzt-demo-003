@@ -1,0 +1,5 @@
+# pnpm workspace 配置
+# 参考：《开沿核心技术宪章》第 3.1 节
+packages:
+  - 'apps/*'
+  - 'packages/*'

@@ -1,0 +1,113 @@
+# 前端流水线
+# 参考：《开沿核心技术宪章》6.0 节 - CI/CD 行为矩阵
+# 参考：《开沿核心技术宪章》6.1 节 - 前端流水线
+
+name: 前端流水线
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'apps/frontend/**'
+      - 'packages/shared/**'
+      - 'pnpm-lock.yaml'
+  pull_request:
+    paths:
+      - 'apps/frontend/**'
+      - 'packages/shared/**'
+      - 'pnpm-lock.yaml'
+
+env:
+  NODE_VERSION: '22'
+  PNPM_VERSION: '10.24.0' # 与 package.json 的 packageManager 对齐
+  FC_REGION: cn-shenzhen
+
+jobs:
+  # CI 检查
+  ci:
+    name: 持续集成检查
+    runs-on: ubuntu-latest
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 配置 pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - name: 配置 Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+
+      - name: 安装依赖
+        run: pnpm install --frozen-lockfile
+
+      - name: 构建共享包
+        run: pnpm --filter @shared build
+
+      - name: 代码检查
+        run: pnpm --filter frontend lint
+
+      - name: 类型检查
+        run: pnpm --filter frontend typecheck
+
+      - name: 运行测试
+        run: pnpm --filter frontend test
+
+      - name: 构建应用
+        run: pnpm --filter frontend build
+        env:
+          VITE_API_BASE_URL: ${{ secrets.VITE_API_BASE_URL }}
+          VITE_SENTRY_DSN: ${{ secrets.VITE_SENTRY_DSN }}
+
+      - name: 上传构建产物
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-dist
+          path: apps/frontend/dist
+          retention-days: 7
+
+  # 生产环境部署（Push 到 main 触发）
+  # 简化架构：移除预览环境，本地开发请使用 pnpm dev:frontend
+  # 参考：《开沿核心技术宪章》4.2 节 - 覆盖式发布
+  deploy-production:
+    name: 部署生产环境
+    if: |
+      github.event_name == 'push' &&
+      github.ref == 'refs/heads/main' &&
+      vars.ENABLE_DEPLOY == 'true'
+    needs: ci
+    runs-on: ubuntu-latest
+    environment:
+      name: production
+      url: https://app.kaiyan.net
+    steps:
+      - name: 下载构建产物
+        uses: actions/download-artifact@v4
+        with:
+          name: frontend-dist
+          path: dist
+
+      - name: 配置阿里云 CLI
+        uses: aliyun/setup-aliyun-cli-action@v1
+        with:
+          version: latest
+
+      - name: 配置阿里云 CLI 凭证
+        run: |
+          aliyun configure set --profile default --mode AK --access-key-id ${{ secrets.ALIYUN_ACCESS_KEY_ID }} --access-key-secret ${{ secrets.ALIYUN_ACCESS_KEY_SECRET }} --region ${{ env.FC_REGION }}
+
+      - name: 部署到 OSS 生产环境
+        run: |
+          # 覆盖式发布 - 参考《开沿核心技术宪章》4.2 节
+          # 风险提示：发布期间（约 10~30 秒）若有用户正在访问，极小概率可能出现短暂白屏
+          # 注意：必须使用 --endpoint 而非 --region，否则 CLI 会使用默认的 cn-hangzhou 端点
+          aliyun oss sync dist/ oss://${{ secrets.OSS_BUCKET_PROD }}/ --endpoint oss-${{ env.FC_REGION }}.aliyuncs.com --delete
+
+      - name: 部署通知
+        run: |
+          echo "Frontend deployed to production successfully!"
+          echo "URL: https://app.kaiyan.net"

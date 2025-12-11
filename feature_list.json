@@ -1,0 +1,170 @@
+[
+  {
+    "id": 1,
+    "category": "functional",
+    "module": "data-table",
+    "description": "DataTable 组件 - 基础渲染与数据展示",
+    "steps": [
+      "步骤 1: 运行 pnpm lint && pnpm typecheck，无错误",
+      "步骤 2: 运行 pnpm test，所有测试通过",
+      "步骤 3: 在任意页面引入 DataTable 组件并传入 columns 和 data",
+      "步骤 4: 验证表格正确渲染所有列和行数据",
+      "步骤 5: 验证空数据时显示'暂无数据'占位符"
+    ],
+    "passes": true
+  },
+  {
+    "id": 2,
+    "category": "functional",
+    "module": "data-table",
+    "description": "DataTable 组件 - 分页功能完整可用",
+    "steps": [
+      "步骤 1: 传入超过 10 条数据到 DataTable",
+      "步骤 2: 验证分页控件正确显示（上一页/下一页按钮）",
+      "步骤 3: 点击下一页，验证数据切换正确",
+      "步骤 4: 验证分页信息显示正确（如 '第 1 页，共 3 页'）",
+      "步骤 5: 验证每页条数选择器功能正常",
+      "步骤 6: 切换每页条数后验证数据正确重新分页"
+    ],
+    "passes": true
+  },
+  {
+    "id": 3,
+    "category": "functional",
+    "module": "data-table",
+    "description": "DataTable 组件 - 排序功能完整可用",
+    "steps": [
+      "步骤 1: 使用 DataTableColumnHeader 定义可排序列",
+      "步骤 2: 点击列头，验证升序排序图标显示",
+      "步骤 3: 再次点击，验证降序排序图标显示",
+      "步骤 4: 验证数据按照点击的列正确排序",
+      "步骤 5: 第三次点击，验证取消排序状态"
+    ],
+    "passes": true
+  },
+  {
+    "id": 4,
+    "category": "functional",
+    "module": "data-table",
+    "description": "DataTable 组件 - 筛选功能完整可用",
+    "steps": [
+      "步骤 1: 在工具栏添加搜索输入框",
+      "步骤 2: 输入搜索关键词，验证表格数据实时过滤",
+      "步骤 3: 清空搜索框，验证数据恢复完整显示",
+      "步骤 4: 验证筛选结果正确影响分页计数"
+    ],
+    "passes": true
+  },
+  {
+    "id": 5,
+    "category": "functional",
+    "module": "data-table",
+    "description": "DataTable 组件 - 列可见性切换",
+    "steps": [
+      "步骤 1: 使用 DataTableViewOptions 组件",
+      "步骤 2: 点击'列'按钮，验证下拉菜单显示所有可隐藏列",
+      "步骤 3: 取消勾选某列，验证该列从表格中隐藏",
+      "步骤 4: 重新勾选，验证该列恢复显示",
+      "步骤 5: 验证 select 和 actions 列不可隐藏"
+    ],
+    "passes": true
+  },
+  {
+    "id": 6,
+    "category": "functional",
+    "module": "data-table",
+    "description": "DataTable 组件 - 行选择功能",
+    "steps": [
+      "步骤 1: 配置 enableRowSelection 为 true",
+      "步骤 2: 验证每行显示选择复选框",
+      "步骤 3: 点击行复选框，验证行被选中（高亮显示）",
+      "步骤 4: 点击表头复选框，验证全选/取消全选",
+      "步骤 5: 验证选中行计数正确显示（如 '已选择 3 行'）",
+      "步骤 6: 验证可通过 onRowSelectionChange 回调获取选中行"
+    ],
+    "passes": true
+  },
+  {
+    "id": 7,
+    "category": "functional",
+    "module": "data-table",
+    "description": "DataTable 组件 - 行操作菜单",
+    "steps": [
+      "步骤 1: 在 columns 中配置 actions 列使用 DataTableRowActions",
+      "步骤 2: 验证每行显示操作按钮（三点图标）",
+      "步骤 3: 点击按钮，验证下拉菜单显示（查看/编辑/删除）",
+      "步骤 4: 点击编辑，验证 onEdit 回调被调用并传入行数据",
+      "步骤 5: 点击删除，验证 onDelete 回调被调用",
+      "步骤 6: 验证权限控制生效（无权限时菜单项隐藏或禁用）"
+    ],
+    "passes": true
+  },
+  {
+    "id": 8,
+    "category": "functional",
+    "module": "data-table",
+    "description": "DataTable 组件 - 批量操作功能",
+    "steps": [
+      "步骤 1: 选择多行数据",
+      "步骤 2: 验证工具栏显示批量操作按钮",
+      "步骤 3: 点击批量删除，验证 ConfirmDialog 弹出",
+      "步骤 4: 确认删除，验证 onBatchDelete 回调被调用并传入选中行 ID",
+      "步骤 5: 验证操作完成后选中状态被清空"
+    ],
+    "passes": true
+  },
+  {
+    "id": 9,
+    "category": "integration",
+    "module": "data-table",
+    "description": "DataTable 组件 - 与后端分页 API 集成",
+    "steps": [
+      "步骤 1: 配置 DataTable 使用服务端分页模式",
+      "步骤 2: 传入 pageCount 和 onPaginationChange 回调",
+      "步骤 3: 切换页码，验证触发 API 请求",
+      "步骤 4: 验证 loading 状态正确显示",
+      "步骤 5: 验证 API 返回数据正确渲染"
+    ],
+    "passes": true
+  },
+  {
+    "id": 10,
+    "category": "style",
+    "module": "data-table",
+    "description": "DataTable 组件 - 响应式布局",
+    "steps": [
+      "步骤 1: 在 1920px 宽度访问页面，验证表格完整显示",
+      "步骤 2: 在 1024px 宽度访问，验证表格横向滚动正常",
+      "步骤 3: 在 768px 宽度访问，验证工具栏自动折行",
+      "步骤 4: 在 375px 宽度访问，验证移动端体验可接受"
+    ],
+    "passes": true
+  },
+  {
+    "id": 11,
+    "category": "security",
+    "module": "data-table",
+    "description": "DataTable 组件 - 权限控制集成",
+    "steps": [
+      "步骤 1: 以无 MODULE_UPDATE 权限用户登录",
+      "步骤 2: 验证行操作菜单中'编辑'按钮隐藏或禁用",
+      "步骤 3: 以无 MODULE_DELETE 权限用户登录",
+      "步骤 4: 验证行操作菜单中'删除'按钮隐藏或禁用",
+      "步骤 5: 验证批量操作按钮权限控制正确"
+    ],
+    "passes": true
+  },
+  {
+    "id": 12,
+    "category": "edge-case",
+    "module": "data-table",
+    "description": "DataTable 组件 - 边界条件处理",
+    "steps": [
+      "步骤 1: 传入空数组，验证空状态正确显示",
+      "步骤 2: 传入单条数据，验证分页控件正确隐藏或禁用",
+      "步骤 3: 快速切换页码，验证无竞态条件错误",
+      "步骤 4: 在加载中状态操作，验证 UI 正确禁用交互"
+    ],
+    "passes": true
+  }
+]

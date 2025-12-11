@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CORSConfiguration>
+  <CORSRule>
+    <!-- 请将示例域名替换为生产/预览前端域名，可添加多条规则 -->
+    <AllowedOrigin>https://app.kaiyan.net</AllowedOrigin>
+    <AllowedOrigin>https://preview.kaiyan.net</AllowedOrigin>
+    <AllowedMethod>GET</AllowedMethod>
+    <AllowedMethod>POST</AllowedMethod>
+    <AllowedMethod>PUT</AllowedMethod>
+    <AllowedHeader>*</AllowedHeader>
+    <ExposeHeader>ETag</ExposeHeader>
+    <MaxAgeSeconds>3600</MaxAgeSeconds>
+  </CORSRule>
+</CORSConfiguration>

@@ -1,0 +1,27 @@
+# 本地开发环境 - PostgreSQL 数据库
+# 使用方式: docker compose up -d
+#
+# 数据库名通过环境变量 DB_NAME 配置：
+# - 模板仓库：默认使用 ky_framework
+# - 独立项目：setup.mjs 会在根目录 .env 中写入 DB_NAME=<项目名>
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    container_name: ky-postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: ${DB_NAME:-ky_framework}
+    ports:
+      - '5432:5432'
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U postgres -d ${DB_NAME:-ky_framework}']
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_data:
