@@ -1,4 +1,5 @@
 import {
+  BarChart3,
   Building2,
   FileText,
   FlaskConical,
@@ -63,6 +64,12 @@ export const menuConfig: MenuConfig = [
         label: 'DataTable 组件',
         icon: Table,
         path: '/demo/data-table',
+      },
+      {
+        key: 'bi-dashboard-demo',
+        label: 'BI 图表看板',
+        icon: BarChart3,
+        path: '/demo/bi-dashboard',
       },
     ],
   },

@@ -188,6 +188,10 @@ async function main() {
   }
   console.log(`  ✓ 为普通用户分配了 ${basicPermissions.length} 个基本权限`);
 
+  // 9. 创建 BI 看板示例数据
+  console.log('\n📊 创建 BI 看板示例数据...');
+  await createSalesData();
+
   console.log('\n✅ 数据库种子数据创建完成！');
   console.log('\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
   console.log('📊 统计信息:');
@@ -195,7 +199,55 @@ async function main() {
   console.log(`  • 组织: ${await prisma.organization.count()} 个`);
   console.log(`  • 角色: ${await prisma.role.count()} 个`);
   console.log(`  • 用户: ${await prisma.user.count()} 个`);
+  console.log(`  • 销售数据: ${await prisma.salesData.count()} 条`);
   console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
+}
+
+// 创建 BI 看板示例数据
+async function createSalesData() {
+  // 检查是否已有数据
+  const existingCount = await prisma.salesData.count();
+  if (existingCount > 0) {
+    console.log(`  ℹ️  已存在 ${existingCount} 条销售数据，跳过创建`);
+    return;
+  }
+
+  const categories = ['电子产品', '服装', '食品', '家居', '图书'];
+  const regions = ['华东', '华南', '华北', '西南', '西北'];
+
+  const salesDataList = [];
+
+  // 生成最近 12 个月的数据
+  for (let monthOffset = 11; monthOffset >= 0; monthOffset--) {
+    const date = new Date();
+    date.setMonth(date.getMonth() - monthOffset);
+    date.setDate(1);
+
+    // 每个月每个类别每个区域生成一条数据
+    for (const category of categories) {
+      for (const region of regions) {
+        // 基础金额 + 随机波动 + 季节性趋势
+        const baseAmount = 10000 + Math.random() * 20000;
+        const seasonalFactor = 1 + 0.3 * Math.sin((date.getMonth() / 12) * 2 * Math.PI);
+        const amount = Math.round(baseAmount * seasonalFactor * 100) / 100;
+        const quantity = Math.floor(amount / (50 + Math.random() * 100));
+
+        salesDataList.push({
+          date: new Date(date),
+          amount,
+          quantity,
+          category,
+          region,
+        });
+      }
+    }
+  }
+
+  await prisma.salesData.createMany({
+    data: salesDataList,
+  });
+
+  console.log(`  ✓ 创建了 ${salesDataList.length} 条销售示例数据`);
 }
 
 main()

@@ -13,6 +13,7 @@ import { OrganizationPage } from '@/features/organizations';
 import { RolePage } from '@/features/roles';
 import { UserPage } from '@/features/users';
 import { DataTableDemo } from '@/features/demo';
+import { BIDashboardPage } from '@/features/bi-dashboard';
 import LoginPage from '@/pages/auth/LoginPage';
 import RegisterPage from '@/pages/auth/RegisterPage';
 import NotFoundPage from '@/pages/NotFoundPage';
@@ -73,6 +74,7 @@ function App() {
                   }
                 />
                 <Route path="demo/data-table" element={<DataTableDemo />} />
+                <Route path="demo/bi-dashboard" element={<BIDashboardPage />} />
                 <Route path="403" element={<ForbiddenPage />} />
                 <Route path="*" element={<NotFoundPage />} />
               </Route>

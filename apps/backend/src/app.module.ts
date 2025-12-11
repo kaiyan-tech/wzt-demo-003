@@ -12,6 +12,7 @@ import { MigrationModule } from './migration/migration.module';
 import { OrganizationModule } from './organization/organization.module';
 import { RoleModule } from './role/role.module';
 import { PermissionModule } from './permission/permission.module';
+import { DashboardModule } from './dashboard/dashboard.module';
 import { JwtAuthGuard } from './auth/jwt-auth.guard';
 import { PermissionsGuard } from './common/guards/permissions.guard';
 import { AuditInterceptor } from './common/interceptors/audit.interceptor';
@@ -67,6 +68,7 @@ import { AuditInterceptor } from './common/interceptors/audit.interceptor';
     OrganizationModule,
     RoleModule,
     PermissionModule,
+    DashboardModule,
   ],
   controllers: [AppController],
   providers: [

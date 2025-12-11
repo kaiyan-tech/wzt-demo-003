@@ -139,3 +139,19 @@ model AuditLog {
   @@index([createdAt])
   @@map("audit_logs")
 }
+
+// BI看板示例数据 - 销售数据模型
+model SalesData {
+  id        String   @id @default(cuid())
+  date      DateTime // 销售日期
+  amount    Float    // 销售金额
+  quantity  Int      // 销售数量
+  category  String   // 产品类别
+  region    String   // 销售区域
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([date])
+  @@index([category])
+  @@index([region])
+  @@map("sales_data")
+}

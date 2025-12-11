@@ -18,3 +18,13 @@ export type { OrgCreatePayload, OrgUpdatePayload } from './organizations';
 
 // 权限
 export { permissionsApi, permissionApi } from './permissions';
+
+// BI 看板
+export { dashboardApi } from './dashboard';
+export type {
+  SalesTrendItem,
+  SalesByCategoryItem,
+  SalesByRegionItem,
+  SummaryStats,
+  RegionCategoryMatrixItem,
+} from './dashboard';
